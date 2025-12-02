@@ -1,119 +1,73 @@
 package com.example.studentmanager
 
+import android.app.Activity
+import android.content.Intent
 import android.os.Bundle
-import androidx.activity.ComponentActivity
-import androidx.activity.compose.setContent
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.unit.dp
+import android.widget.ArrayAdapter
+import android.widget.ListView
+import androidx.appcompat.app.AppCompatActivity
+import com.google.android.material.floatingactionbutton.FloatingActionButton
 
-data class Student(var name: String, val id: String)
+data class Student(
+    val id: Int,
+    val name: String,
+    val age: Int,
+    val major: String
+)
 
-class MainActivity : ComponentActivity() {
+class MainActivity : AppCompatActivity() {
+
+    private val students = mutableListOf<Student>()
+    private lateinit var adapter: ArrayAdapter<String>
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContent {
-            StudentApp()
+        setContentView(R.layout.activity_main)
+
+        val listView = findViewById<ListView>(R.id.listViewStudents)
+        val fab = findViewById<FloatingActionButton>(R.id.fabAdd)
+
+        // Khởi tạo adapter với danh sách rỗng ban đầu
+        adapter = ArrayAdapter(
+            this,
+            android.R.layout.simple_list_item_1,
+            students.map { it.name }
+        )
+        listView.adapter = adapter
+
+        // Mở màn hình AddStudentActivity khi nhấn FAB
+        fab.setOnClickListener {
+            val intent = Intent(this, AddStudentActivity::class.java)
+            startActivityForResult(intent, 100)
+        }
+
+        // Xem chi tiết khi bấm vào item
+        listView.setOnItemClickListener { _, _, position, _ ->
+            val st = students[position]
+            val intent = Intent(this, DetailActivity::class.java)
+            intent.putExtra("id", st.id)
+            intent.putExtra("name", st.name)
+            intent.putExtra("age", st.age)
+            intent.putExtra("major", st.major)
+            startActivity(intent)
         }
     }
-}
 
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-fun StudentApp() {
-    var name by remember { mutableStateOf("") }
-    var id by remember { mutableStateOf("") }
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        super.onActivityResult(requestCode, resultCode, data)
 
-    val students = remember { mutableStateListOf<Student>() }
+        if (requestCode == 100 && resultCode == Activity.RESULT_OK && data != null) {
+            val id = students.size + 1
+            val name = data.getStringExtra("name") ?: ""
+            val age = data.getIntExtra("age", 0)
+            val major = data.getStringExtra("major") ?: ""
 
-    var selectedIndex by remember { mutableStateOf(-1) }
+            students.add(Student(id, name, age, major))
 
-    Column(modifier = Modifier.padding(16.dp)) {
-
-        // ------- INPUTS -------
-        OutlinedTextField(
-            value = name,
-            onValueChange = { name = it },
-            label = { Text("Họ tên") },
-            modifier = Modifier.fillMaxWidth()
-        )
-
-        Spacer(modifier = Modifier.height(8.dp))
-
-        OutlinedTextField(
-            value = id,
-            onValueChange = { id = it },
-            label = { Text("MSSV") },
-            modifier = Modifier.fillMaxWidth(),
-            enabled = selectedIndex == -1 // Khi chọn item thì khóa MSSV không cho sửa
-        )
-
-        Spacer(modifier = Modifier.height(10.dp))
-
-        Row {
-            Button(
-                onClick = {
-                    if (name.isNotEmpty() && id.isNotEmpty()) {
-                        students.add(Student(name, id))
-                        name = ""
-                        id = ""
-                    }
-                }
-            ) {
-                Text("Add")
-            }
-
-            Spacer(Modifier.width(12.dp))
-
-            Button(
-                onClick = {
-                    if (selectedIndex != -1) {
-                        students[selectedIndex].name = name
-                        selectedIndex = -1
-                        name = ""
-                        id = ""
-                    }
-                }
-            ) {
-                Text("Update")
-            }
-        }
-
-        Spacer(modifier = Modifier.height(20.dp))
-
-        // ------- LIST -------
-        LazyColumn {
-            items(students) { student ->
-                val index = students.indexOf(student)
-
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable {
-                            selectedIndex = index
-                            name = student.name
-                            id = student.id
-                        }
-                        .padding(12.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    Column {
-                        Text("Họ tên: ${student.name}")
-                        Text("MSSV: ${student.id}")
-                    }
-
-                    Button(onClick = { students.removeAt(index) }) {
-                        Text("Xóa")
-                    }
-                }
-
-                Divider()
-            }
+            // Cập nhật adapter
+            adapter.clear()
+            adapter.addAll(students.map { it.name })
+            adapter.notifyDataSetChanged()
         }
     }
 }
